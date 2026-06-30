@@ -267,14 +267,14 @@
       </div>
 
       <div class="field">
-        <label>Sky / Solar Condition</label>
+        <label>Sun Exposure (where you are)</label>
         <div class="sun-row" id="sunRow">
-          <button data-v="0">Full shade</button>
-          <button data-v="0.5">Partly cloudy</button>
-          <button data-v="0.85" class="active">Mostly sunny</button>
-          <button data-v="1">Full sun</button>
+          <button data-v="0">In full shade</button>
+          <button data-v="0.5">Filtered / dappled shade</button>
+          <button data-v="0.85" class="active">Mostly exposed to direct sun</button>
+          <button data-v="1">Fully exposed, direct sun</button>
         </div>
-        <div class="hint">Drives the estimated solar load on the globe thermometer.</div>
+        <div class="hint">This is about whether <em>you</em> are standing in the sun right now, not just whether it's sunny out — being in shade on a clear day is closer to "full shade" here.</div>
       </div>
 
       <div class="field">
@@ -283,7 +283,7 @@
           <button data-v="0">Grass / vegetation</button>
           <button data-v="1" class="active">Asphalt / concrete</button>
         </div>
-        <div class="hint">Reflective hard surfaces add extra radiant heat.</div>
+        <div class="hint">Hot pavement feels much hotter underfoot, but at the height a globe thermometer (or your torso) sits, published field studies find surface type has only a small effect on WBGT — air mixes well above ground level. This toggle reflects that: a real but modest nudge, not a dramatic one.</div>
       </div>
     </div>
 
