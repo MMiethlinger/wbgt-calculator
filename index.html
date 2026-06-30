@@ -378,7 +378,13 @@ function globeTemp(T, dewC, wind, sun, surf, pressureMb){
   const Ta_K = T + 273.15;
 
   // Wind speed must be in meters/HOUR for Dimiceli & Piltz's fitted constant.
-  const windMph_equiv = Math.max(wind, 0.05) * 3600;
+  // Floor at 0.3 m/s rather than near-zero: true zero-wind stagnant air is
+  // rare outdoors even when it feels "calm," since natural buoyant convection
+  // off a hot globe still moves a meaningful amount of air on its own. A
+  // near-zero floor let the convective term collapse, producing an
+  // unrealistically steep jump in globe temperature near the bottom of the
+  // wind slider; this floor keeps "calm" conditions physically plausible.
+  const windMph_equiv = Math.max(wind, 0.3) * 3600;
   const h = 0.315;
   const C = h * Math.pow(windMph_equiv, 0.58) / 5.3865e-8;
 
