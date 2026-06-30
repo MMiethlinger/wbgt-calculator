@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WBGT — Wet Bulb Globe Temperature</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1a1f26;
+    --bg-panel:#21272f;
+    --bg-input:#181d24;
+    --line:#323a44;
+    --ink:#e8d5a8;
+    --ink-dim:#8a93a0;
+    --ink-bright:#f5ecd8;
+    --flag-white:#e9edf2;
+    --flag-green:#3f9142;
+    --flag-yellow:#d9b021;
+    --flag-red:#c4432f;
+    --flag-black:#0d0f12;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -10%, #232a33 0%, var(--bg) 55%);
+    color:var(--ink-bright);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:32px 18px 60px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  /* ===== Header ===== */
+  header{margin-bottom:28px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--ink-dim);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px;height:7px;border-radius:50%;
+    background:var(--flag-green);
+    box-shadow:0 0 8px var(--flag-green);
+  }
+  h1{
+    font-family:var(--mono);
+    font-weight:800;
+    font-size:clamp(28px,4.5vw,42px);
+    letter-spacing:-0.01em;
+    margin:8px 0 6px;
+    color:var(--ink-bright);
+  }
+  .sub{color:var(--ink-dim);font-size:14.5px;max-width:560px;line-height:1.55;}
+
+  /* ===== Layout ===== */
+  .grid{
+    display:grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap:22px;
+    margin-top:26px;
+  }
+  @media (max-width:760px){
+    .grid{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:24px;
+  }
+  .panel h2{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin:0 0 18px;
+    font-weight:600;
+  }
+
+  /* ===== Inputs ===== */
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;color:var(--ink);
+    margin-bottom:7px;
+    font-weight:500;
+  }
+  .field label .val{
+    font-family:var(--mono);
+    color:var(--ink-bright);
+    font-size:14px;
+    font-weight:700;
+  }
+  .field input[type=range]{
+    width:100%;
+    -webkit-appearance:none;
+    appearance:none;
+    height:4px;
+    border-radius:2px;
+    background:var(--line);
+    outline:none;
+  }
+  .field input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:18px;height:18px;border-radius:50%;
+    background:var(--ink);
+    border:2px solid var(--bg-panel);
+    box-shadow:0 0 0 1px var(--line);
+    cursor:pointer;
+    margin-top:-7px;
+  }
+  .field input[type=range]::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;
+    background:var(--ink);
+    border:2px solid var(--bg-panel);
+    box-shadow:0 0 0 1px var(--line);
+    cursor:pointer;
+  }
+  .hint{font-size:11.5px;color:var(--ink-dim);margin-top:5px;line-height:1.4;}
+
+  .seg{
+    display:flex;gap:6px;margin-top:6px;
+  }
+  .seg button{
+    flex:1;
+    background:var(--bg-input);
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    font-family:var(--mono);
+    font-size:11.5px;
+    padding:8px 4px;
+    border-radius:7px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .seg button.active{
+    background:var(--ink);
+    color:var(--bg);
+    border-color:var(--ink);
+    font-weight:700;
+  }
+  .seg button:hover:not(.active){border-color:var(--ink-dim);color:var(--ink-bright);}
+
+  .sun-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  .sun-row button{
+    background:var(--bg-input);
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    font-size:11.5px;
+    padding:7px 10px;
+    border-radius:7px;
+    cursor:pointer;
+    font-family:var(--sans);
+    transition:all .15s ease;
+  }
+  .sun-row button.active{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600;}
+
+  /* ===== Gauge / Result ===== */
+  .result-panel{
+    display:flex;flex-direction:column;align-items:center;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .gauge-wrap{position:relative;width:240px;height:140px;margin:6px auto 4px;}
+  .reading{
+    font-family:var(--mono);
+    font-size:52px;
+    font-weight:800;
+    line-height:1;
+    margin-top:6px;
+    color:var(--ink-bright);
+    letter-spacing:-0.02em;
+  }
+  .reading .unit{font-size:22px;color:var(--ink-dim);font-weight:500;margin-left:3px;}
+  .cat-label{
+    font-family:var(--mono);
+    font-size:14px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    font-weight:700;
+    margin-top:10px;
+    padding:6px 16px;
+    border-radius:999px;
+    display:inline-block;
+  }
+  .cat-desc{
+    font-size:13px;
+    color:var(--ink-dim);
+    margin-top:14px;
+    line-height:1.6;
+    max-width:320px;
+  }
+  .flag-strip{
+    display:flex;gap:4px;width:100%;margin-top:22px;
+  }
+  .flag-strip .seg-bar{
+    flex:1;height:6px;border-radius:3px;opacity:.35;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .flag-strip .seg-bar.on{opacity:1;transform:scaleY(1.6);}
+
+  .breakdown{
+    margin-top:24px;
+    width:100%;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+  }
+  .bd-item{text-align:left;}
+  .bd-item .k{font-size:10px;color:var(--ink-dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;}
+  .bd-item .v{font-family:var(--mono);font-size:15px;color:var(--ink);font-weight:700;margin-top:2px;}
+
+  footer{
+    margin-top:30px;
+    color:var(--ink-dim);
+    font-size:11.5px;
+    line-height:1.6;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+  footer a{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Live Calculation</div>
+    <h1>WBGT Heat Stress Monitor</h1>
+    <p class="sub">Estimates outdoor Wet Bulb Globe Temperature from air temperature, humidity, wind, and solar conditions — the same composite index used by ACGIH and military heat-category guidance to flag exertion risk.</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div class="panel">
+      <h2>Field Readings</h2>
+
+      <div class="field">
+        <label>Air Temperature <span class="val" id="tVal">32.0°C</span></label>
+        <input type="range" id="temp" min="10" max="50" step="0.5" value="32">
+      </div>
+
+      <div class="field">
+        <label>Relative Humidity <span class="val" id="rhVal">55%</span></label>
+        <input type="range" id="rh" min="5" max="100" step="1" value="55">
+      </div>
+
+      <div class="field">
+        <label>Wind Speed <span class="val" id="windVal">2.0 m/s</span></label>
+        <input type="range" id="wind" min="0" max="15" step="0.5" value="2">
+        <div class="hint">~2 m/s is a light breeze. 0 = still air.</div>
+      </div>
+
+      <div class="field">
+        <label>Sky / Solar Condition</label>
+        <div class="sun-row" id="sunRow">
+          <button data-v="0">Full shade</button>
+          <button data-v="0.5">Partly cloudy</button>
+          <button data-v="0.85" class="active">Mostly sunny</button>
+          <button data-v="1">Full sun</button>
+        </div>
+        <div class="hint">Drives the estimated solar load on the globe thermometer.</div>
+      </div>
+
+      <div class="field">
+        <label>Surface</label>
+        <div class="seg" id="surfRow">
+          <button data-v="0">Grass / vegetation</button>
+          <button data-v="1" class="active">Asphalt / concrete</button>
+        </div>
+        <div class="hint">Reflective hard surfaces add extra radiant heat.</div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="panel result-panel">
+      <h2 style="align-self:flex-start;">Estimated WBGT</h2>
+      <div class="reading"><span id="wbgtVal">—</span><span class="unit">°C</span></div>
+      <div class="cat-label" id="catLabel">—</div>
+      <div class="cat-desc" id="catDesc">Adjust the readings to see your risk category.</div>
+
+      <div class="flag-strip" id="flagStrip">
+        <div class="seg-bar" style="background:var(--flag-white)" data-cat="0"></div>
+        <div class="seg-bar" style="background:var(--flag-green)" data-cat="1"></div>
+        <div class="seg-bar" style="background:var(--flag-yellow)" data-cat="2"></div>
+        <div class="seg-bar" style="background:var(--flag-red)" data-cat="3"></div>
+        <div class="seg-bar" style="background:var(--flag-black)" data-cat="4"></div>
+      </div>
+
+      <div class="breakdown">
+        <div class="bd-item"><div class="k">Twb (est.)</div><div class="v" id="twbVal">—</div></div>
+        <div class="bd-item"><div class="k">Tglobe (est.)</div><div class="v" id="tgVal">—</div></div>
+        <div class="bd-item"><div class="k">Heat Index</div><div class="v" id="hiVal">—</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Formula: WBGT = 0.7·T<sub>wb</sub> + 0.2·T<sub>globe</sub> + 0.1·T<sub>dry</sub> (outdoor, with solar load). Natural wet-bulb and globe temperatures are estimated from air temperature, RH, wind, and solar/surface input using standard meteorological approximations (Stull 2011 for Twb; a simplified radiative globe-temp model for Tg) rather than direct sensor measurement, so treat results as estimates, not certified industrial-hygiene readings. For occupational exposure decisions, use a calibrated WBGT meter and your jurisdiction's official heat-stress guidance.
+  </footer>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const tempEl = $('temp'), rhEl = $('rh'), windEl = $('wind');
+const sunRow = $('sunRow'), surfRow = $('surfRow');
+
+let sunFactor = 0.85;
+let surfFactor = 1;
+
+sunRow.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  [...sunRow.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  sunFactor = parseFloat(e.target.dataset.v);
+  calc();
+});
+surfRow.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  [...surfRow.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  surfFactor = parseFloat(e.target.dataset.v);
+  calc();
+});
+
+[tempEl, rhEl, windEl].forEach(el => el.addEventListener('input', calc));
+
+// Natural wet-bulb temp estimate (Stull 2011 psychrometric approximation)
+function wetBulb(T, RH){
+  return T * Math.atan(0.151977 * Math.sqrt(RH + 8.313659))
+    + Math.atan(T + RH)
+    - Math.atan(RH - 1.676331)
+    + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+    - 4.686035;
+}
+
+// Simplified globe temperature estimate from air temp, wind, solar & surface load
+function globeTemp(T, wind, sun, surf){
+  // base radiative gain scaled by solar fraction, partially offset by wind convection,
+  // with a bonus for reflective/hard surfaces
+  const solarGain = sun * (10 + surf * 4);          // up to ~14°C added at full sun + asphalt
+  const windCooling = Math.min(wind, 8) * 0.45;      // wind strips heat off the globe
+  return T + solarGain - windCooling;
+}
+
+// Rough NWS-style heat index (valid mainly above ~27°C / 40% RH; informational only)
+function heatIndexC(Tc, RH){
+  const T = Tc * 9/5 + 32;
+  if (T < 80) return Tc;
+  let HI = -42.379 + 2.04901523*T + 10.14333127*RH - 0.22475541*T*RH
+    - 0.00683783*T*T - 0.05481717*RH*RH + 0.00122874*T*T*RH
+    + 0.00085282*T*RH*RH - 0.00000199*T*T*RH*RH;
+  return (HI - 32) * 5/9;
+}
+
+function category(wbgt){
+  // Categories aligned to common ACGIH/military-style outdoor WBGT flag thresholds (°C)
+  if (wbgt < 27.0) return 0; // White / Low
+  if (wbgt < 29.5) return 1; // Green / Caution
+  if (wbgt < 31.0) return 2; // Yellow / Moderate
+  if (wbgt < 32.0) return 3; // Red / High
+  return 4;                   // Black / Extreme
+}
+
+const CAT_META = [
+  {name:'Low Risk',      color:'var(--flag-white)', textColor:'#1a1f26', desc:'Normal activity. Heat stress risk is minimal — stay hydrated as a habit.'},
+  {name:'Caution',       color:'var(--flag-green)', textColor:'#0d2b10', desc:'Watch for early heat-strain symptoms. Increase water intake and take breaks during sustained exertion.'},
+  {name:'Moderate Risk', color:'var(--flag-yellow)', textColor:'#332600', desc:'Limit intense or prolonged activity. Schedule frequent rest in shade and monitor anyone unacclimatized.'},
+  {name:'High Risk',     color:'var(--flag-red)', textColor:'#fff', desc:'Reduce strenuous activity significantly. Mandatory rest cycles and close monitoring for heat illness symptoms.'},
+  {name:'Extreme Danger',color:'var(--flag-black)', textColor:'#f5ecd8', desc:'Suspend non-essential outdoor exertion. High risk of heat exhaustion or heat stroke even at rest in direct sun.'}
+];
+
+function calc(){
+  const T = parseFloat(tempEl.value);
+  const RH = parseFloat(rhEl.value);
+  const wind = parseFloat(windEl.value);
+
+  $('tVal').textContent = T.toFixed(1) + '°C';
+  $('rhVal').textContent = RH + '%';
+  $('windVal').textContent = wind.toFixed(1) + ' m/s';
+
+  const Twb = wetBulb(T, RH);
+  const Tg = globeTemp(T, wind, sunFactor, surfFactor);
+  const wbgt = 0.7*Twb + 0.2*Tg + 0.1*T;
+  const hi = heatIndexC(T, RH);
+
+  $('twbVal').textContent = Twb.toFixed(1) + '°C';
+  $('tgVal').textContent = Tg.toFixed(1) + '°C';
+  $('hiVal').textContent = hi.toFixed(1) + '°C';
+  $('wbgtVal').textContent = wbgt.toFixed(1);
+
+  const cat = category(wbgt);
+  const meta = CAT_META[cat];
+  const label = $('catLabel');
+  label.textContent = meta.name;
+  label.style.background = meta.color;
+  label.style.color = meta.textColor;
+  $('catDesc').textContent = meta.desc;
+
+  [...document.querySelectorAll('.seg-bar')].forEach(bar=>{
+    bar.classList.toggle('on', parseInt(bar.dataset.cat)===cat);
+  });
+}
+
+calc();
+</script>
+</body>
+</html>
