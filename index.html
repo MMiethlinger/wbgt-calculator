@@ -285,6 +285,27 @@
         </div>
         <div class="hint">Hot pavement feels much hotter underfoot, but at the height a globe thermometer (or your torso) sits, published field studies find surface type has only a small effect on WBGT — air mixes well above ground level. This toggle reflects that: a real but modest nudge, not a dramatic one.</div>
       </div>
+
+      <div class="field">
+        <label>Activity Level</label>
+        <div class="seg" id="activityRow" style="flex-wrap:wrap;">
+          <button data-v="0">Resting</button>
+          <button data-v="1">Light</button>
+          <button data-v="2" class="active">Moderate</button>
+          <button data-v="3">High</button>
+          <button data-v="4">Very High</button>
+        </div>
+        <div class="hint">ISO 7243's safe WBGT limit depends on workload: harder work lowers the threshold considerably. "Moderate" covers sustained manual work or brisk walking; "Very High" covers running or maximal-pace effort.</div>
+      </div>
+
+      <div class="field">
+        <label>Heat Acclimatization</label>
+        <div class="seg" id="acclimRow">
+          <button data-v="1" class="active">Acclimatized</button>
+          <button data-v="0">Not acclimatized</button>
+        </div>
+        <div class="hint">Per ISO 7243, "acclimatized" means regular heat exposure for at least a full week prior. Unacclimatized people have meaningfully lower safe limits.</div>
+      </div>
     </div>
 
     <!-- RESULT -->
@@ -312,7 +333,7 @@
   </div>
 
   <footer>
-    Formula: WBGT = 0.7·T<sub>wb</sub> + 0.2·T<sub>globe</sub> + 0.1·T<sub>dry</sub> (outdoor, with solar load). Natural wet-bulb temperature is estimated from air temperature and RH (Stull 2011). Globe temperature is estimated using the Dimiceli &amp; Piltz (NWS Tulsa) heat-balance model, a closed-form derivative of Liljegren et al. (2008). The sky-condition picker maps to estimated solar irradiance calibrated against three published field measurements rather than theoretical peak irradiance; cross-checked against those measurements, the full WBGT pipeline lands within roughly 0.2°C. No location, date, or time data is collected to make this estimate. Treat results as estimates, not certified industrial-hygiene readings — for occupational exposure decisions, use a calibrated WBGT meter and your jurisdiction's official heat-stress guidance.
+    Formula: WBGT = 0.7·T<sub>wb</sub> + 0.2·T<sub>globe</sub> + 0.1·T<sub>dry</sub> (outdoor, with solar load), as defined in ISO 7243:2017. Natural wet-bulb temperature is estimated from air temperature and RH (Stull 2011). Globe temperature is estimated using the Dimiceli &amp; Piltz (NWS Tulsa) heat-balance model, a closed-form derivative of Liljegren et al. (2008). The sky-condition picker maps to estimated solar irradiance calibrated against three published field measurements rather than theoretical peak irradiance; cross-checked against those measurements, the full WBGT pipeline lands within roughly 0.2°C. No location, date, or time data is collected to make this estimate. Reference values are taken directly from ISO 7243:2017 Annex A (WBGTref = 56.7 − 11.5·log₁₀(M) for acclimatized people, 59.9 − 14.1·log₁₀(M) for unacclimatized, M = metabolic rate in watts) — this is the standard's actual pass/fail limit; ISO itself defines no intermediate caution tiers, so the graded color bands shown here are this app's own addition for progressive feedback, not part of the standard. Treat results as estimates, not certified industrial-hygiene readings — for occupational exposure decisions, use a calibrated WBGT meter and a qualified assessment under ISO 7243 or your jurisdiction's official heat-stress guidance.
   </footer>
 
 </div>
@@ -338,6 +359,25 @@ surfRow.addEventListener('click', e=>{
   [...surfRow.children].forEach(b=>b.classList.remove('active'));
   e.target.classList.add('active');
   surfFactor = parseFloat(e.target.dataset.v);
+  calc();
+});
+
+const activityRow = $('activityRow'), acclimRow = $('acclimRow');
+let activityClass = 2;   // ISO 7243 metabolic-rate class index (0-4)
+let acclimatized = 1;    // 1 = acclimatized, 0 = not
+
+activityRow.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  [...activityRow.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  activityClass = parseInt(e.target.dataset.v);
+  calc();
+});
+acclimRow.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  [...acclimRow.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  acclimatized = parseInt(e.target.dataset.v);
   calc();
 });
 
@@ -443,21 +483,54 @@ function heatIndexC(Tc, RH){
   return (HI - 32) * 5/9;
 }
 
-function category(wbgt){
-  // Categories aligned to common ACGIH/military-style outdoor WBGT flag thresholds (°C)
-  if (wbgt < 27.0) return 0; // White / Low
-  if (wbgt < 29.5) return 1; // Green / Caution
-  if (wbgt < 31.0) return 2; // Yellow / Moderate
-  if (wbgt < 32.0) return 3; // Red / High
-  return 4;                   // Black / Extreme
+// ISO 7243:2017, Annex A — official reference values, metabolic rate in watts
+// per class. Verified directly against the published standard text.
+const ISO_METABOLIC_W = [115, 180, 300, 415, 520]; // Class 0 (resting) .. Class 4 (very high)
+
+// ISO 7243 reference-value formula (Annex A):
+//   acclimatized:   WBGTref = 56.7 - 11.5*log10(M)
+//   unacclimatized: WBGTref = 59.9 - 14.1*log10(M)
+// where M is metabolic rate in watts. This single line is the actual pass/fail
+// limit ISO defines — there is no official intermediate "caution" tier between
+// safe and over-limit. The graded color bands below this limit (used for the
+// UI's progressive feedback) are NOT part of ISO 7243 itself; they're a
+// reasonable approach scaled proportionally toward that one official limit,
+// clearly distinguished from the standard's actual (binary) interpretation.
+//
+// Note: ISO 7243 Annex A explicitly states its continuous-curve equations may
+// differ from the rounded Table A.1 reference values by roughly ±1°C, citing
+// "harmonization with existing national standards" for the table. Checked
+// directly against the published table, the acclimatized curve tracks within
+// ~0.2-0.8°C as expected; the unacclimatized curve diverges further at the
+// extremes (up to ~1.6°C at very light or very heavy workloads). Both the
+// formula and the table are part of the same published standard; this app
+// uses the formula (for smooth, continuous behavior across activity levels)
+// rather than the table, but the table is the more conservative reference at
+// the extremes for unacclimatized people specifically.
+function isoReferenceWBGT(activityClassIdx, acclimatized){
+  const M = ISO_METABOLIC_W[activityClassIdx];
+  return acclimatized
+    ? 56.7 - 11.5 * Math.log10(M)
+    : 59.9 - 14.1 * Math.log10(M);
+}
+
+function category(wbgt, activityClassIdx, acclimatized){
+  const ref = isoReferenceWBGT(activityClassIdx, acclimatized);
+  // Graded bands as fractions of the ISO reference limit, for progressive
+  // visual feedback as conditions approach the official threshold.
+  if (wbgt < ref - 4)   return 0; // well under limit
+  if (wbgt < ref - 2)   return 1; // approaching limit
+  if (wbgt < ref)       return 2; // near limit, caution
+  if (wbgt < ref + 2)   return 3; // over ISO limit — action required
+  return 4;                        // well over limit
 }
 
 const CAT_META = [
-  {name:'Low Risk',      color:'var(--flag-white)', textColor:'#1a1f26', desc:'Normal activity. Heat stress risk is minimal — stay hydrated as a habit.'},
-  {name:'Caution',       color:'var(--flag-green)', textColor:'#0d2b10', desc:'Watch for early heat-strain symptoms. Increase water intake and take breaks during sustained exertion.'},
-  {name:'Moderate Risk', color:'var(--flag-yellow)', textColor:'#332600', desc:'Limit intense or prolonged activity. Schedule frequent rest in shade and monitor anyone unacclimatized.'},
-  {name:'High Risk',     color:'var(--flag-red)', textColor:'#fff', desc:'Reduce strenuous activity significantly. Mandatory rest cycles and close monitoring for heat illness symptoms.'},
-  {name:'Extreme Danger',color:'var(--flag-black)', textColor:'#f5ecd8', desc:'Suspend non-essential outdoor exertion. High risk of heat exhaustion or heat stroke even at rest in direct sun.'}
+  {name:'Well Under Limit', color:'var(--flag-white)', textColor:'#1a1f26', desc:'Comfortably under the ISO 7243 reference value for this workload. Normal activity, routine hydration.'},
+  {name:'Approaching Limit',color:'var(--flag-green)', textColor:'#0d2b10', desc:'Getting closer to the ISO reference value. Watch for early heat-strain symptoms and increase water intake.'},
+  {name:'Near ISO Limit',   color:'var(--flag-yellow)', textColor:'#332600', desc:'Close to or at the ISO 7243 reference value for this workload and acclimatization status. Consider reducing intensity or increasing rest.'},
+  {name:'Over ISO Limit',   color:'var(--flag-red)', textColor:'#fff', desc:'Exceeds the ISO 7243 reference value — per the standard, further action is required: reduce heat stress directly, or use a detailed analysis (ISO 7933).'},
+  {name:'Well Over Limit',  color:'var(--flag-black)', textColor:'#f5ecd8', desc:'Substantially exceeds the ISO reference value. High risk of heat illness; suspend or sharply curtail this activity.'}
 ];
 
 function calc(){
@@ -480,13 +553,14 @@ function calc(){
   $('hiVal').textContent = hi.toFixed(1) + '°C';
   $('wbgtVal').textContent = wbgt.toFixed(1);
 
-  const cat = category(wbgt);
+  const cat = category(wbgt, activityClass, acclimatized);
   const meta = CAT_META[cat];
+  const isoRef = isoReferenceWBGT(activityClass, acclimatized);
   const label = $('catLabel');
   label.textContent = meta.name;
   label.style.background = meta.color;
   label.style.color = meta.textColor;
-  $('catDesc').textContent = meta.desc;
+  $('catDesc').textContent = meta.desc + ' (ISO 7243 reference value for this workload/acclimatization: ' + isoRef.toFixed(1) + '°C.)';
 
   [...document.querySelectorAll('.seg-bar')].forEach(bar=>{
     bar.classList.toggle('on', parseInt(bar.dataset.cat)===cat);
